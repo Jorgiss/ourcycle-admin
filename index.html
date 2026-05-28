@@ -80,15 +80,43 @@
     }
     .sparkline .bar:hover .tip { opacity: 1; }
     .sparkline-labels { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); font-size: 11px; }
-    .funnel-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; }
-    .funnel-row .label { width: 130px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
-    .funnel-row .bar-wrap { flex: 1; background: var(--line); height: 22px; border-radius: 4px; overflow: hidden; position: relative; }
-    .funnel-row .bar { background: var(--accent); height: 100%; border-radius: 4px; transition: width 0.4s ease-out; }
-    .funnel-row .count { font-weight: 700; min-width: 32px; text-align: right; color: var(--ink); }
-    .funnel-row .pct { color: var(--muted); font-size: 11px; min-width: 38px; text-align: right; }
-    .funnel-row.drop { opacity: 0.55; }
-    .funnel-row.drop .bar { background: var(--warn); }
-    .funnel-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; }
+    /* Funnel: stages stack vertically, each is a centred horizontal
+       block whose width shrinks proportional to the cohort count. */
+    .funnel { display: flex; flex-direction: column; align-items: center; gap: 0; }
+    .funnel-stage {
+      width: 100%; display: flex; flex-direction: column; align-items: center;
+      transition: all 0.4s ease-out;
+    }
+    .funnel-stage .block {
+      position: relative;
+      padding: 16px 20px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent) 0%, #c66b87 100%);
+      color: white;
+      display: flex; flex-direction: column; align-items: center;
+      box-shadow: 0 2px 8px rgba(164, 74, 109, 0.18);
+      transition: width 0.5s ease-out;
+    }
+    .funnel-stage.empty .block {
+      background: var(--line);
+      color: var(--muted);
+      box-shadow: none;
+    }
+    .funnel-stage .label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+    .funnel-stage .count { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; margin-top: 4px; }
+    .funnel-stage .pct { font-size: 11px; opacity: 0.85; margin-top: 4px; font-weight: 500; }
+    .funnel-drop {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .funnel-drop.bad { color: var(--warn); font-weight: 600; }
+    .funnel-drop .arrow { font-size: 16px; line-height: 1; }
+    .funnel-note { color: var(--muted); font-size: 11px; margin: 16px 0 0; text-align: center; }
+    /* Refresh ticker */
+    .ticker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
     .privacy-note { font-size: 12px; color: var(--muted); margin: 24px 0 0; line-height: 1.6; }
     .privacy-note a { color: var(--accent); }
     .login {
@@ -120,7 +148,8 @@
       <h1>OurCycle Analytics</h1>
       <p class="lede">Live aggregates from Firestore + Firebase Auth.</p>
       <div class="refresh-bar">
-        <button id="refreshBtn">Refresh</button>
+        <button id="refreshBtn">Refresh now</button>
+        <span class="ticker" id="ticker">refreshing in 60s</span>
         <button class="ghost" id="signoutBtn">Sign out</button>
         <span class="meta" id="generatedAt"></span>
       </div>
@@ -183,7 +212,7 @@
 
     <h2>Onboarding funnel</h2>
     <div class="card">
-      <div id="funnel"></div>
+      <div class="funnel" id="funnel"></div>
       <p class="funnel-note">Counts over real users (excluding Apple reviewers and internal accounts). No individual identifiers are exposed.</p>
     </div>
 
@@ -275,36 +304,97 @@ function renderStats(data) {
     providersDiv.appendChild(span);
   }
 
-  // Funnel - aggregate counts only, no per-user identifiers
+  // Funnel - centred shrinking stages with drop-off indicators between.
+  // Aggregate only; no per-user identifiers anywhere.
   const funnelDiv = $("funnel");
   funnelDiv.innerHTML = "";
   if (data.funnel && data.funnel.length) {
-    const start = data.funnel[0].count || 1;
+    const start = Math.max(1, data.funnel[0].count);
     let prev = null;
-    for (const stage of data.funnel) {
-      const widthPct = (stage.count / start) * 100;
-      const dropFromPrev = prev !== null && prev > 0
-        ? Math.round((stage.count / prev) * 100)
-        : 100;
-      const row = document.createElement("div");
-      row.className = "funnel-row" + (stage.count === 0 ? " drop" : "");
-      row.innerHTML = `
-        <span class="label">${stage.label}</span>
-        <div class="bar-wrap"><div class="bar" style="width:${Math.max(widthPct, 2)}%"></div></div>
-        <span class="count">${fmt(stage.count)}</span>
-        <span class="pct">${stage.pctOfStart}% · ${dropFromPrev}↓</span>
+    data.funnel.forEach((stage, i) => {
+      const fraction = stage.count / start;
+      // Min width 38% so even a zero-count stage stays readable;
+      // bigger stages flex up to 92%.
+      const widthPct = Math.max(38, fraction * 92);
+      const stageEl = document.createElement("div");
+      stageEl.className = "funnel-stage" + (stage.count === 0 ? " empty" : "");
+      stageEl.innerHTML = `
+        <div class="block" style="width:${widthPct}%">
+          <div class="label">${stage.label}</div>
+          <div class="count">${fmt(stage.count)}</div>
+          <div class="pct">${stage.pctOfStart}% of cohort</div>
+        </div>
       `;
-      funnelDiv.appendChild(row);
+      funnelDiv.appendChild(stageEl);
+      // Inter-stage drop indicator (skip after last)
+      if (i < data.funnel.length - 1) {
+        const next = data.funnel[i + 1];
+        const lost = stage.count - next.count;
+        const dropPct = stage.count > 0
+          ? Math.round((lost / stage.count) * 100)
+          : 0;
+        const drop = document.createElement("div");
+        const badThreshold = 50; // ≥50% drop between stages = warn
+        drop.className = "funnel-drop" + (dropPct >= badThreshold ? " bad" : "");
+        if (lost === 0) {
+          drop.innerHTML = `<span class="arrow">↓</span> kept everyone`;
+        } else {
+          drop.innerHTML = `<span class="arrow">↓</span> lost ${fmt(lost)} (${dropPct}%)`;
+        }
+        funnelDiv.appendChild(drop);
+      }
       prev = stage.count;
-    }
+    });
   } else {
     funnelDiv.textContent = "No funnel data yet.";
   }
 }
 
+// Auto-refresh every 60s with a visible countdown so it doesn't feel
+// like nothing's happening. Pauses when the tab is hidden so we don't
+// burn function invocations while not looking.
+const REFRESH_INTERVAL_MS = 60_000;
+let refreshHandle = null;
+let countdownHandle = null;
+let nextRefreshAt = 0;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
+  refreshHandle = setInterval(() => {
+    loadAndRender();
+    nextRefreshAt = Date.now() + REFRESH_INTERVAL_MS;
+  }, REFRESH_INTERVAL_MS);
+  countdownHandle = setInterval(updateTicker, 1000);
+  updateTicker();
+}
+
+function stopAutoRefresh() {
+  if (refreshHandle) { clearInterval(refreshHandle); refreshHandle = null; }
+  if (countdownHandle) { clearInterval(countdownHandle); countdownHandle = null; }
+}
+
+function updateTicker() {
+  const ticker = $("ticker");
+  if (!ticker) return;
+  const remaining = Math.max(0, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+  ticker.textContent = `refreshing in ${remaining}s`;
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopAutoRefresh();
+  } else if (!$("dashboard").classList.contains("hidden")) {
+    // Tab came back into focus and we're signed in - refresh now and
+    // resume the cadence.
+    loadAndRender();
+    startAutoRefresh();
+  }
+});
+
 async function loadAndRender() {
   const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) { showLogin(); return; }
+  if (!token) { showLogin(); stopAutoRefresh(); return; }
   try {
     const data = await fetchStats(token);
     showDashboard();
@@ -313,6 +403,7 @@ async function loadAndRender() {
     if (err.message.includes("rejected")) {
       localStorage.removeItem(TOKEN_KEY);
       showLogin(err.message);
+      stopAutoRefresh();
     } else {
       showDashboard();
       $("generatedAt").textContent = "Error: " + err.message;
@@ -328,6 +419,7 @@ $("loginBtn").addEventListener("click", async () => {
     localStorage.setItem(TOKEN_KEY, token);
     showDashboard();
     renderStats(data);
+    startAutoRefresh();
   } catch (err) {
     $("loginErr").textContent = err.message;
   }
@@ -335,13 +427,21 @@ $("loginBtn").addEventListener("click", async () => {
 $("tokenInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("loginBtn").click();
 });
-$("refreshBtn").addEventListener("click", loadAndRender);
+$("refreshBtn").addEventListener("click", () => {
+  loadAndRender();
+  // Restart the cadence so manual + auto don't double-fire seconds apart.
+  startAutoRefresh();
+});
 $("signoutBtn").addEventListener("click", () => {
   localStorage.removeItem(TOKEN_KEY);
+  stopAutoRefresh();
   showLogin();
 });
 
-loadAndRender();
+// Boot: load, then if a token was saved kick off the 60s loop.
+loadAndRender().then(() => {
+  if (localStorage.getItem(TOKEN_KEY)) startAutoRefresh();
+});
 </script>
 </body>
 </html>
