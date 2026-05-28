@@ -89,31 +89,74 @@
     }
     .funnel-stage .block {
       position: relative;
-      padding: 16px 20px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent) 0%, #c66b87 100%);
+      padding: 18px 22px 14px;
+      border-radius: 14px;
+      /* Subtle two-tone gradient that hints at the female / male
+         halves visible in the split-bar below. */
+      background: linear-gradient(135deg, #c75d7e 0%, #6a89b8 130%);
       color: white;
       display: flex; flex-direction: column; align-items: center;
-      box-shadow: 0 2px 8px rgba(164, 74, 109, 0.18);
+      box-shadow: 0 4px 14px rgba(60, 40, 30, 0.10),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.15);
       transition: width 0.5s ease-out;
+      min-width: 200px;
     }
     .funnel-stage.empty .block {
       background: var(--line);
       color: var(--muted);
       box-shadow: none;
     }
-    .funnel-stage .label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
-    .funnel-stage .count { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; line-height: 1; margin-top: 4px; }
-    .funnel-stage .pct { font-size: 11px; opacity: 0.85; margin-top: 4px; font-weight: 500; }
+    .funnel-stage .label {
+      font-size: 12px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; opacity: 0.9;
+    }
+    .funnel-stage .count {
+      font-size: 38px; font-weight: 800; letter-spacing: -0.02em;
+      line-height: 1; margin-top: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .funnel-stage .pct {
+      font-size: 11px; opacity: 0.85; margin-top: 4px;
+      font-weight: 500; letter-spacing: 0.02em;
+    }
+    /* Split bar inside the funnel block - female (pink) | male (blue)
+       | unknown (translucent). Width proportional to each role's
+       share of the stage. */
+    .funnel-split {
+      display: flex; height: 6px; width: 100%; max-width: 220px;
+      border-radius: 3px; overflow: hidden; margin-top: 12px;
+      background: rgba(255, 255, 255, 0.18);
+    }
+    .funnel-split .seg-female  { background: #f6b3c8; }
+    .funnel-split .seg-male    { background: #a8c3e4; }
+    .funnel-split .seg-unknown { background: rgba(255, 255, 255, 0.30); }
+    .funnel-split .seg { transition: flex 0.4s ease-out; }
+    .funnel-stage.empty .funnel-split { background: rgba(0, 0, 0, 0.06); }
+    .funnel-stage.empty .funnel-split .seg-female { background: rgba(211, 107, 138, 0.35); }
+    .funnel-stage.empty .funnel-split .seg-male { background: rgba(91, 139, 184, 0.35); }
+    /* Counts row underneath the split */
+    .funnel-counts {
+      display: flex; gap: 12px; margin-top: 8px;
+      font-size: 11px; font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.95;
+    }
+    .funnel-counts .female::before { content: "\2640\2009"; }
+    .funnel-counts .male::before { content: "\2642\2009"; }
     .funnel-drop {
-      display: flex; align-items: center; gap: 6px;
-      padding: 4px 0;
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0;
       color: var(--muted);
       font-size: 12px;
       font-weight: 500;
+      letter-spacing: 0.02em;
     }
-    .funnel-drop.bad { color: var(--warn); font-weight: 600; }
-    .funnel-drop .arrow { font-size: 16px; line-height: 1; }
+    .funnel-drop.bad { color: var(--warn); font-weight: 700; }
+    .funnel-drop.bad .arrow { color: var(--warn); }
+    .funnel-drop .arrow {
+      font-size: 18px; line-height: 1; color: var(--muted);
+      opacity: 0.6;
+    }
     .funnel-note { color: var(--muted); font-size: 11px; margin: 16px 0 0; text-align: center; }
     /* Refresh ticker */
     .ticker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -453,16 +496,37 @@ function renderStats(data) {
     let prev = null;
     data.funnel.forEach((stage, i) => {
       const fraction = stage.count / start;
-      // Min width 38% so even a zero-count stage stays readable;
+      // Min width 42% so even a zero-count stage stays readable;
       // bigger stages flex up to 92%.
-      const widthPct = Math.max(38, fraction * 92);
+      const widthPct = Math.max(42, fraction * 92);
       const stageEl = document.createElement("div");
       stageEl.className = "funnel-stage" + (stage.count === 0 ? " empty" : "");
+
+      // Build the split bar from per-stage roleSplit. If roleSplit is
+      // missing (older API), the bar simply doesn't render.
+      const split = stage.roleSplit || { tracker: 0, partner: 0, unknown: 0 };
+      const splitTotal = Math.max(1, split.tracker + split.partner + split.unknown);
+      const splitHTML = (split.tracker + split.partner + split.unknown) === 0
+        ? ""
+        : `
+          <div class="funnel-split">
+            ${split.tracker > 0 ? `<div class="seg seg-female" style="flex:${split.tracker}" title="Female: ${split.tracker}"></div>` : ""}
+            ${split.partner > 0 ? `<div class="seg seg-male" style="flex:${split.partner}" title="Male: ${split.partner}"></div>` : ""}
+            ${split.unknown > 0 ? `<div class="seg seg-unknown" style="flex:${split.unknown}" title="Not set: ${split.unknown}"></div>` : ""}
+          </div>
+          <div class="funnel-counts">
+            <span class="female">${fmt(split.tracker)}</span>
+            <span class="male">${fmt(split.partner)}</span>
+            ${split.unknown > 0 ? `<span class="meta" style="opacity:0.7">· ${fmt(split.unknown)} not set</span>` : ""}
+          </div>
+        `;
+
       stageEl.innerHTML = `
         <div class="block" style="width:${widthPct}%">
           <div class="label">${stage.label}</div>
           <div class="count">${fmt(stage.count)}</div>
           <div class="pct">${stage.pctOfStart}% of cohort</div>
+          ${splitHTML}
         </div>
       `;
       funnelDiv.appendChild(stageEl);
