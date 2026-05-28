@@ -220,6 +220,11 @@
         <div class="val" id="activeCycles">-</div>
         <div class="sub">users currently tracking</div>
       </div>
+      <div class="card">
+        <div class="lbl">App Store downloads</div>
+        <div class="val" id="downloadsCount">-</div>
+        <div class="sub" id="downloadsSub">from ASC Sales Reports</div>
+      </div>
       <div class="card role-card">
         <div class="lbl">Role split</div>
         <div class="role-bar" id="roleBar"></div>
@@ -341,6 +346,20 @@ function renderStats(data) {
     ? `${fmt(t.appleReviewers)} reviewers · ${fmt(t.internal)} internal`
     : "excludes reviewers + internal";
   $("activeCycles").textContent = fmt(t.usersWithActiveCycle);
+
+  // App Store downloads. data.downloads is null when the vendor number
+  // secret isn't configured OR the daily report fetch errored. Show a
+  // dash + hint copy in either case.
+  if (data.downloads && typeof data.downloads.totalDownloads === "number") {
+    $("downloadsCount").textContent = fmt(data.downloads.totalDownloads);
+    const asOf = data.downloads.asOf;
+    $("downloadsSub").textContent = asOf
+      ? `as of ${asOf}${data.downloads.cached ? " · cached" : ""}`
+      : "no daily report yet";
+  } else {
+    $("downloadsCount").textContent = "—";
+    $("downloadsSub").textContent = "ASC vendor # not set";
+  }
 
   // Role split (tracker = female, partner = male). Always over real
   // users only - the role field is collected during onboarding and
