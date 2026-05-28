@@ -117,6 +117,25 @@
     .funnel-note { color: var(--muted); font-size: 11px; margin: 16px 0 0; text-align: center; }
     /* Refresh ticker */
     .ticker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    /* Role-split mini bar inside the role card */
+    .role-card .val { margin-top: 4px; }
+    .role-bar {
+      display: flex; height: 22px; border-radius: 6px; overflow: hidden;
+      background: var(--line); margin: 8px 0 8px;
+    }
+    .role-bar .seg-female { background: #d36b8a; }
+    .role-bar .seg-male { background: #5b8bb8; }
+    .role-bar .seg-unknown { background: var(--muted); opacity: 0.5; }
+    .role-bar .seg { transition: flex 0.4s ease-out; }
+    .role-legend {
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 11px;
+    }
+    .role-pill { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+    .role-pill .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .role-pill.female .dot { background: #d36b8a; }
+    .role-pill.male   .dot { background: #5b8bb8; }
+    .role-pill.unknown .dot { background: var(--muted); opacity: 0.5; }
     /* Pill toggle for include-internal */
     .toggle {
       display: inline-flex; align-items: center; gap: 8px;
@@ -200,6 +219,24 @@
         <div class="lbl">Active cycles</div>
         <div class="val" id="activeCycles">-</div>
         <div class="sub">users currently tracking</div>
+      </div>
+      <div class="card role-card">
+        <div class="lbl">Role split</div>
+        <div class="role-bar" id="roleBar"></div>
+        <div class="role-legend">
+          <span class="role-pill female">
+            <span class="dot"></span>
+            <span>Female (tracker): <strong id="roleTrackerCount">-</strong></span>
+          </span>
+          <span class="role-pill male">
+            <span class="dot"></span>
+            <span>Male (partner): <strong id="rolePartnerCount">-</strong></span>
+          </span>
+          <span class="role-pill unknown" id="roleUnknownPill" style="display:none">
+            <span class="dot"></span>
+            <span>Not set: <strong id="roleUnknownCount">-</strong></span>
+          </span>
+        </div>
       </div>
     </div>
 
@@ -304,6 +341,36 @@ function renderStats(data) {
     ? `${fmt(t.appleReviewers)} reviewers · ${fmt(t.internal)} internal`
     : "excludes reviewers + internal";
   $("activeCycles").textContent = fmt(t.usersWithActiveCycle);
+
+  // Role split (tracker = female, partner = male). Always over real
+  // users only - the role field is collected during onboarding and
+  // reviewer accounts often skip it. Bar width proportional to count
+  // within the segment.
+  const roles = data.roleCounts || { tracker: 0, partner: 0, unknown: 0 };
+  const roleTotal = Math.max(1, roles.tracker + roles.partner + roles.unknown);
+  const roleBar = $("roleBar");
+  roleBar.innerHTML = "";
+  const segs = [
+    ["seg-female", roles.tracker],
+    ["seg-male", roles.partner],
+    ["seg-unknown", roles.unknown],
+  ];
+  for (const [cls, n] of segs) {
+    if (n === 0) continue;
+    const s = document.createElement("div");
+    s.className = "seg " + cls;
+    s.style.flex = String(n);
+    s.title = `${cls.replace("seg-", "")}: ${n}`;
+    roleBar.appendChild(s);
+  }
+  $("roleTrackerCount").textContent = fmt(roles.tracker);
+  $("rolePartnerCount").textContent = fmt(roles.partner);
+  if (roles.unknown > 0) {
+    $("roleUnknownPill").style.display = "";
+    $("roleUnknownCount").textContent = fmt(roles.unknown);
+  } else {
+    $("roleUnknownPill").style.display = "none";
+  }
 
   $("signals").textContent = fmt(t.totalSignals);
   $("cyclesLogged").textContent = fmt(t.totalCyclesLogged);
