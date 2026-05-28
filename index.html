@@ -66,20 +66,40 @@
     th { background: #f5efe6; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
     tr:last-child td { border-bottom: 0; }
     code { background: var(--line); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
-    .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 80px; margin-top: 12px; }
-    .sparkline .bar {
-      flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px;
-      position: relative; opacity: 0.85;
+    .sparkline { display: flex; align-items: flex-end; gap: 3px; height: 80px; margin-top: 12px; }
+    /* Each day is a column with two bars side-by-side: downloads
+       behind (light blue), signups in front (accent pink). */
+    .sparkline .day {
+      flex: 1; display: flex; align-items: flex-end; gap: 1px;
+      height: 100%; position: relative;
     }
-    .sparkline .bar:hover { opacity: 1; }
-    .sparkline .bar .tip {
+    .sparkline .bar {
+      flex: 1; min-height: 2px; border-radius: 2px 2px 0 0; opacity: 0.85;
+    }
+    .sparkline .bar.signups { background: var(--accent); }
+    .sparkline .bar.downloads { background: #6a89b8; }
+    .sparkline .day:hover .bar { opacity: 1; }
+    .sparkline .day .tip {
       position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-      background: var(--ink); color: white; padding: 2px 6px; font-size: 11px;
+      background: var(--ink); color: white; padding: 3px 8px; font-size: 11px;
       border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none;
       margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
     }
-    .sparkline .bar:hover .tip { opacity: 1; }
+    .sparkline .day:hover .tip { opacity: 1; }
     .sparkline-labels { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .sparkline-legend {
+      display: flex; gap: 14px; margin-top: 10px;
+      font-size: 11px; color: var(--muted);
+    }
+    .sparkline-legend .key {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .sparkline-legend .swatch {
+      width: 10px; height: 10px; border-radius: 2px;
+    }
+    .sparkline-legend .signups { background: var(--accent); }
+    .sparkline-legend .downloads { background: #6a89b8; }
     /* Funnel rendered as horizontal columns reading left → right.
        First column is the widest (full cohort - downloads if present),
        subsequent columns get narrower as the cohort drops. The
@@ -396,10 +416,14 @@
       </div>
     </div>
 
-    <h2>Signups - last 30 days</h2>
+    <h2>Activity - last 30 days</h2>
     <div class="card">
       <div class="sparkline" id="spark"></div>
       <div class="sparkline-labels" id="sparkLabels"></div>
+      <div class="sparkline-legend">
+        <span class="key"><span class="swatch downloads"></span>Downloads (ASC)</span>
+        <span class="key"><span class="swatch signups"></span>Signups (Firebase)</span>
+      </div>
     </div>
 
     <h2>Onboarding funnel</h2>
@@ -553,26 +577,47 @@ function renderStats(data) {
     ? `Generated ${new Date(data.generatedAt).toLocaleString()} · App Store live since ${liveDate}`
     : `Generated ${new Date(data.generatedAt).toLocaleString()}`;
 
-  // Sparkline picks the right signup series based on toggle.
-  const series = incl
+  // Dual-series sparkline: signups bar + downloads bar side-by-side
+  // per day. signups picks the right series based on toggle; downloads
+  // comes from ASC Sales Reports (data.downloads.byDay), keyed by
+  // YYYY-MM-DD, with missing keys treated as 0.
+  const signupSeries = incl
     ? data.signupsByDay
     : (data.realSignupsByDay || data.signupsByDay);
+  const downloadByDay = (data.downloads && data.downloads.byDay) || {};
   const spark = $("spark");
   spark.innerHTML = "";
-  const max = Math.max(1, ...series.map((d) => d.count));
-  for (const d of series) {
-    const pct = (d.count / max) * 100;
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.style.height = `${pct}%`;
+  // Common scale across both series so the bars are visually
+  // comparable. Downloads are usually ≥ signups so this gives signups
+  // a smaller bar on the same day - which is the funnel story.
+  const max = Math.max(
+    1,
+    ...signupSeries.map((d) => d.count),
+    ...signupSeries.map((d) => downloadByDay[d.date] || 0),
+  );
+  for (const d of signupSeries) {
+    const dlCount = downloadByDay[d.date] || 0;
+    const day = document.createElement("div");
+    day.className = "day";
+
+    const dlBar = document.createElement("div");
+    dlBar.className = "bar downloads";
+    dlBar.style.height = `${(dlCount / max) * 100}%`;
+    day.appendChild(dlBar);
+
+    const suBar = document.createElement("div");
+    suBar.className = "bar signups";
+    suBar.style.height = `${(d.count / max) * 100}%`;
+    day.appendChild(suBar);
+
     const tip = document.createElement("span");
     tip.className = "tip";
-    tip.textContent = `${d.date}: ${d.count}`;
-    bar.appendChild(tip);
-    spark.appendChild(bar);
+    tip.textContent = `${d.date} · ↓${dlCount} · +${d.count}`;
+    day.appendChild(tip);
+    spark.appendChild(day);
   }
   $("sparkLabels").innerHTML =
-    `<span>${series[0]?.date || ""}</span><span>${series.at(-1)?.date || ""}</span>`;
+    `<span>${signupSeries[0]?.date || ""}</span><span>${signupSeries.at(-1)?.date || ""}</span>`;
 
   // Providers also flips - real-only by default.
   const providerSource = incl
