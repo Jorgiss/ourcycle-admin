@@ -378,8 +378,13 @@ function renderStats(data) {
   $("dailyConnects").textContent = fmt(t.totalDailyConnects);
   $("flowOverrides").textContent = fmt(t.totalFlowOverrides);
 
-  $("generatedAt").textContent =
-    "Generated " + new Date(data.generatedAt).toLocaleString();
+  const liveDate = data.appStoreLiveAt
+    ? new Date(data.appStoreLiveAt).toLocaleDateString(undefined,
+        { day: "numeric", month: "short", year: "numeric" })
+    : null;
+  $("generatedAt").textContent = liveDate
+    ? `Generated ${new Date(data.generatedAt).toLocaleString()} · App Store live since ${liveDate}`
+    : `Generated ${new Date(data.generatedAt).toLocaleString()}`;
 
   // Sparkline picks the right signup series based on toggle.
   const series = incl
