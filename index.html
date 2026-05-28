@@ -117,6 +117,25 @@
     .funnel-note { color: var(--muted); font-size: 11px; margin: 16px 0 0; text-align: center; }
     /* Refresh ticker */
     .ticker { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    /* Pill toggle for include-internal */
+    .toggle {
+      display: inline-flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
+      font-size: 12px; color: var(--muted);
+    }
+    .toggle input { display: none; }
+    .toggle .track {
+      width: 32px; height: 18px; background: var(--line); border-radius: 9px;
+      position: relative; transition: background 0.2s;
+    }
+    .toggle .knob {
+      position: absolute; top: 2px; left: 2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: left 0.2s;
+    }
+    .toggle input:checked + .track { background: var(--accent); }
+    .toggle input:checked + .track .knob { left: 16px; }
     .privacy-note { font-size: 12px; color: var(--muted); margin: 24px 0 0; line-height: 1.6; }
     .privacy-note a { color: var(--accent); }
     .login {
@@ -150,6 +169,11 @@
       <div class="refresh-bar">
         <button id="refreshBtn">Refresh now</button>
         <span class="ticker" id="ticker">refreshing in 60s</span>
+        <label class="toggle">
+          <input type="checkbox" id="includeInternalToggle">
+          <span class="track"><span class="knob"></span></span>
+          <span>Include reviewers + internal</span>
+        </label>
         <button class="ghost" id="signoutBtn">Sign out</button>
         <span class="meta" id="generatedAt"></span>
       </div>
@@ -232,6 +256,12 @@
 <script>
 const ENDPOINT = "https://us-central1-ourcycle-b6b97.cloudfunctions.net/adminStats";
 const TOKEN_KEY = "ourcycle.admin.token";
+const TOGGLE_KEY = "ourcycle.admin.includeInternal";
+let lastData = null; // cached response so toggle changes don't refetch
+
+function includeInternal() {
+  return localStorage.getItem(TOGGLE_KEY) === "1";
+}
 
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => (n ?? 0).toLocaleString();
@@ -258,13 +288,21 @@ async function fetchStats(token) {
 }
 
 function renderStats(data) {
+  lastData = data;
+  const incl = includeInternal();
   const t = data.totals;
+
+  // The "Total accounts" headline + Sparkline + Providers card flip
+  // based on the toggle. Everything else is real-user-only by
+  // definition (funnel + activity counts compute from the real
+  // cohort) and stays unchanged.
   $("realUsers").textContent = fmt(t.realUsers);
   $("couples").textContent = fmt(t.couples);
   $("usersPairedSub").textContent = `${fmt(t.usersPaired)} users paired`;
-  $("totalAccounts").textContent = fmt(t.authUsers);
-  $("accountsBreakdown").textContent =
-    `${fmt(t.appleReviewers)} reviewers · ${fmt(t.internal)} internal`;
+  $("totalAccounts").textContent = incl ? fmt(t.authUsers) : fmt(t.realUsers);
+  $("accountsBreakdown").textContent = incl
+    ? `${fmt(t.appleReviewers)} reviewers · ${fmt(t.internal)} internal`
+    : "excludes reviewers + internal";
   $("activeCycles").textContent = fmt(t.usersWithActiveCycle);
 
   $("signals").textContent = fmt(t.totalSignals);
@@ -276,11 +314,14 @@ function renderStats(data) {
   $("generatedAt").textContent =
     "Generated " + new Date(data.generatedAt).toLocaleString();
 
-  // Sparkline
+  // Sparkline picks the right signup series based on toggle.
+  const series = incl
+    ? data.signupsByDay
+    : (data.realSignupsByDay || data.signupsByDay);
   const spark = $("spark");
   spark.innerHTML = "";
-  const max = Math.max(1, ...data.signupsByDay.map((d) => d.count));
-  for (const d of data.signupsByDay) {
+  const max = Math.max(1, ...series.map((d) => d.count));
+  for (const d of series) {
     const pct = (d.count / max) * 100;
     const bar = document.createElement("div");
     bar.className = "bar";
@@ -292,16 +333,24 @@ function renderStats(data) {
     spark.appendChild(bar);
   }
   $("sparkLabels").innerHTML =
-    `<span>${data.signupsByDay[0]?.date || ""}</span><span>${data.signupsByDay.at(-1)?.date || ""}</span>`;
+    `<span>${series[0]?.date || ""}</span><span>${series.at(-1)?.date || ""}</span>`;
 
-  // Providers
+  // Providers also flips - real-only by default.
+  const providerSource = incl
+    ? (data.providersAll || data.providers)
+    : (data.providersReal || {});
   const providersDiv = $("providers");
   providersDiv.innerHTML = "";
-  for (const [p, count] of Object.entries(data.providers).sort((a, b) => b[1] - a[1])) {
-    const span = document.createElement("span");
-    span.className = "pill";
-    span.textContent = `${p}: ${count}`;
-    providersDiv.appendChild(span);
+  const entries = Object.entries(providerSource).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) {
+    providersDiv.innerHTML = '<span class="meta">No data</span>';
+  } else {
+    for (const [p, count] of entries) {
+      const span = document.createElement("span");
+      span.className = "pill";
+      span.textContent = `${p}: ${count}`;
+      providersDiv.appendChild(span);
+    }
   }
 
   // Funnel - centred shrinking stages with drop-off indicators between.
@@ -436,6 +485,15 @@ $("signoutBtn").addEventListener("click", () => {
   localStorage.removeItem(TOKEN_KEY);
   stopAutoRefresh();
   showLogin();
+});
+
+// Include-internal toggle. Re-renders from cached lastData (no
+// network round-trip) so flicking the toggle feels instant.
+const toggleEl = $("includeInternalToggle");
+toggleEl.checked = includeInternal();
+toggleEl.addEventListener("change", () => {
+  localStorage.setItem(TOGGLE_KEY, toggleEl.checked ? "1" : "0");
+  if (lastData) renderStats(lastData);
 });
 
 // Boot: load, then if a token was saved kick off the 60s loop.
