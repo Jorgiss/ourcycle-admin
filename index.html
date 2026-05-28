@@ -89,17 +89,23 @@
     }
     .funnel-stage .block {
       position: relative;
-      padding: 18px 22px 14px;
-      border-radius: 14px;
+      padding: 10px 14px 8px;
+      border-radius: 10px;
       /* Subtle two-tone gradient that hints at the female / male
          halves visible in the split-bar below. */
       background: linear-gradient(135deg, #c75d7e 0%, #6a89b8 130%);
       color: white;
-      display: flex; flex-direction: column; align-items: center;
-      box-shadow: 0 4px 14px rgba(60, 40, 30, 0.10),
-                  inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      align-items: center;
+      column-gap: 12px;
+      row-gap: 4px;
+      box-shadow: 0 2px 8px rgba(60, 40, 30, 0.08),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.12);
       transition: width 0.5s ease-out;
-      min-width: 200px;
+      min-width: 240px;
+      max-width: 480px;
     }
     .funnel-stage.empty .block {
       background: var(--line);
@@ -107,24 +113,33 @@
       box-shadow: none;
     }
     .funnel-stage .label {
-      font-size: 12px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.08em; opacity: 0.9;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; opacity: 0.95;
+      grid-column: 1; grid-row: 1;
+      justify-self: start;
     }
     .funnel-stage .count {
-      font-size: 38px; font-weight: 800; letter-spacing: -0.02em;
-      line-height: 1; margin-top: 4px;
+      font-size: 22px; font-weight: 800; letter-spacing: -0.01em;
+      line-height: 1;
       font-variant-numeric: tabular-nums;
+      grid-column: 2; grid-row: 1 / span 2;
+      justify-self: end;
     }
     .funnel-stage .pct {
-      font-size: 11px; opacity: 0.85; margin-top: 4px;
+      font-size: 10px; opacity: 0.85;
       font-weight: 500; letter-spacing: 0.02em;
+      grid-column: 1; grid-row: 2;
+      justify-self: start;
     }
-    /* Split bar inside the funnel block - female (pink) | male (blue)
-       | unknown (translucent). Width proportional to each role's
-       share of the stage. */
+    /* Split bar + counts moved to bottom-only row across full width */
+    .funnel-bottom {
+      grid-column: 1 / -1; grid-row: 3;
+      display: flex; align-items: center; gap: 10px;
+      margin-top: 4px;
+    }
     .funnel-split {
-      display: flex; height: 6px; width: 100%; max-width: 220px;
-      border-radius: 3px; overflow: hidden; margin-top: 12px;
+      display: flex; height: 4px; flex: 1;
+      border-radius: 2px; overflow: hidden;
       background: rgba(255, 255, 255, 0.18);
     }
     .funnel-split .seg-female  { background: #f6b3c8; }
@@ -134,28 +149,53 @@
     .funnel-stage.empty .funnel-split { background: rgba(0, 0, 0, 0.06); }
     .funnel-stage.empty .funnel-split .seg-female { background: rgba(211, 107, 138, 0.35); }
     .funnel-stage.empty .funnel-split .seg-male { background: rgba(91, 139, 184, 0.35); }
-    /* Counts row underneath the split */
     .funnel-counts {
-      display: flex; gap: 12px; margin-top: 8px;
-      font-size: 11px; font-weight: 600;
+      display: flex; gap: 8px;
+      font-size: 10px; font-weight: 600;
       font-variant-numeric: tabular-nums;
       opacity: 0.95;
+      white-space: nowrap;
     }
     .funnel-counts .female::before { content: "\2640\2009"; }
     .funnel-counts .male::before { content: "\2642\2009"; }
     .funnel-drop {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 0;
+      display: flex; align-items: center; gap: 6px;
+      padding: 3px 0;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
       letter-spacing: 0.02em;
     }
     .funnel-drop.bad { color: var(--warn); font-weight: 700; }
     .funnel-drop.bad .arrow { color: var(--warn); }
     .funnel-drop .arrow {
-      font-size: 18px; line-height: 1; color: var(--muted);
+      font-size: 13px; line-height: 1; color: var(--muted);
       opacity: 0.6;
+    }
+    /* Today snapshot row */
+    .today-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .today-card {
+      flex: 1; min-width: 140px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      box-shadow: var(--shadow);
+    }
+    .today-card .lbl {
+      font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); font-weight: 700;
+    }
+    .today-card .val {
+      font-size: 24px; font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+      margin-top: 2px;
+    }
+    .today-card .sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .today-date {
+      font-size: 11px; color: var(--muted); font-weight: 500;
+      margin: 0 0 8px;
     }
     .funnel-note { color: var(--muted); font-size: 11px; margin: 16px 0 0; text-align: center; }
     /* Refresh ticker */
@@ -240,6 +280,26 @@
         <span class="meta" id="generatedAt"></span>
       </div>
     </header>
+
+    <h2>Today</h2>
+    <p class="today-date" id="todayDate"></p>
+    <div class="today-row">
+      <div class="today-card">
+        <div class="lbl">New signups</div>
+        <div class="val" id="todaySignups">-</div>
+        <div class="sub" id="todaySignupsSub"></div>
+      </div>
+      <div class="today-card">
+        <div class="lbl">Last 7 days</div>
+        <div class="val" id="todayRolling7">-</div>
+        <div class="sub">rolling signups</div>
+      </div>
+      <div class="today-card">
+        <div class="lbl">Downloads (latest)</div>
+        <div class="val" id="todayDownloads">-</div>
+        <div class="sub" id="todayDownloadsSub">from ASC</div>
+      </div>
+    </div>
 
     <h2>People</h2>
     <div class="cards">
@@ -377,6 +437,28 @@ function renderStats(data) {
   const incl = includeInternal();
   const t = data.totals;
 
+  // Today snapshot - signups today (real or all per toggle), 7-day
+  // rolling, downloads on the latest report date.
+  const td = data.today || {};
+  const dateLabel = td.date
+    ? new Date(td.date + "T00:00:00Z").toLocaleDateString(undefined,
+        { weekday: "short", month: "short", day: "numeric" })
+    : "";
+  $("todayDate").textContent = dateLabel ? `Snapshot · ${dateLabel} (UTC)` : "";
+  const signupsToday = incl ? (td.newSignupsAll || 0) : (td.newSignupsReal || 0);
+  $("todaySignups").textContent = fmt(signupsToday);
+  $("todaySignupsSub").textContent = incl ? "all accounts" : "real users";
+  $("todayRolling7").textContent = fmt(td.rollingSignupsReal7d || 0);
+  if (data.downloads && typeof data.downloads.totalDownloads === "number") {
+    $("todayDownloads").textContent = fmt(data.downloads.totalDownloads);
+    $("todayDownloadsSub").textContent = data.downloads.asOf
+      ? `total · as of ${data.downloads.asOf}`
+      : "no report yet";
+  } else {
+    $("todayDownloads").textContent = "—";
+    $("todayDownloadsSub").textContent = "ASC vendor # not set";
+  }
+
   // The "Total accounts" headline + Sparkline + Providers card flip
   // based on the toggle. Everything else is real-user-only by
   // definition (funnel + activity counts compute from the real
@@ -505,28 +587,27 @@ function renderStats(data) {
       // Build the split bar from per-stage roleSplit. If roleSplit is
       // missing (older API), the bar simply doesn't render.
       const split = stage.roleSplit || { tracker: 0, partner: 0, unknown: 0 };
-      const splitTotal = Math.max(1, split.tracker + split.partner + split.unknown);
-      const splitHTML = (split.tracker + split.partner + split.unknown) === 0
+
+      const bottomHTML = (split.tracker + split.partner + split.unknown) === 0
         ? ""
-        : `
-          <div class="funnel-split">
-            ${split.tracker > 0 ? `<div class="seg seg-female" style="flex:${split.tracker}" title="Female: ${split.tracker}"></div>` : ""}
-            ${split.partner > 0 ? `<div class="seg seg-male" style="flex:${split.partner}" title="Male: ${split.partner}"></div>` : ""}
-            ${split.unknown > 0 ? `<div class="seg seg-unknown" style="flex:${split.unknown}" title="Not set: ${split.unknown}"></div>` : ""}
-          </div>
-          <div class="funnel-counts">
-            <span class="female">${fmt(split.tracker)}</span>
-            <span class="male">${fmt(split.partner)}</span>
-            ${split.unknown > 0 ? `<span class="meta" style="opacity:0.7">· ${fmt(split.unknown)} not set</span>` : ""}
-          </div>
-        `;
+        : `<div class="funnel-bottom">
+            <div class="funnel-split">
+              ${split.tracker > 0 ? `<div class="seg seg-female" style="flex:${split.tracker}" title="Female: ${split.tracker}"></div>` : ""}
+              ${split.partner > 0 ? `<div class="seg seg-male" style="flex:${split.partner}" title="Male: ${split.partner}"></div>` : ""}
+              ${split.unknown > 0 ? `<div class="seg seg-unknown" style="flex:${split.unknown}" title="Not set: ${split.unknown}"></div>` : ""}
+            </div>
+            <div class="funnel-counts">
+              <span class="female">${fmt(split.tracker)}</span>
+              <span class="male">${fmt(split.partner)}</span>
+            </div>
+          </div>`;
 
       stageEl.innerHTML = `
         <div class="block" style="width:${widthPct}%">
           <div class="label">${stage.label}</div>
-          <div class="count">${fmt(stage.count)}</div>
           <div class="pct">${stage.pctOfStart}% of cohort</div>
-          ${splitHTML}
+          <div class="count">${fmt(stage.count)}</div>
+          ${bottomHTML}
         </div>
       `;
       funnelDiv.appendChild(stageEl);
