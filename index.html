@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>OurCycle - Admin</title>
+  <style>
+    :root {
+      --bg: #faf6f1;
+      --ink: #2c2520;
+      --muted: #6b6157;
+      --card: #ffffff;
+      --line: #e9e0d4;
+      --accent: #a44a6d;
+      --good: #5d8a5e;
+      --warn: #c08a3a;
+      --shadow: 0 1px 3px rgba(60, 40, 30, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      padding: 32px 24px 64px;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 { margin: 0 0 4px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+    h2 { margin: 32px 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+    .lede { color: var(--muted); margin-bottom: 24px; }
+    .refresh-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+    button {
+      font: inherit; background: var(--ink); color: white; border: 0; padding: 8px 14px;
+      border-radius: 8px; cursor: pointer;
+    }
+    button:hover { background: var(--accent); }
+    button.ghost { background: transparent; color: var(--muted); padding: 4px 8px; }
+    button.ghost:hover { color: var(--ink); background: var(--line); }
+    .meta { color: var(--muted); font-size: 13px; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+    .card .lbl { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    .card .val { font-size: 32px; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; }
+    .card .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .card.accent .val { color: var(--accent); }
+    .card.good .val { color: var(--good); }
+    table {
+      width: 100%; border-collapse: collapse; background: var(--card);
+      border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+    th { background: #f5efe6; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; }
+    tr:last-child td { border-bottom: 0; }
+    code { background: var(--line); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+    .sparkline { display: flex; align-items: flex-end; gap: 2px; height: 80px; margin-top: 12px; }
+    .sparkline .bar {
+      flex: 1; background: var(--accent); border-radius: 2px 2px 0 0; min-height: 2px;
+      position: relative; opacity: 0.85;
+    }
+    .sparkline .bar:hover { opacity: 1; }
+    .sparkline .bar .tip {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: white; padding: 2px 6px; font-size: 11px;
+      border-radius: 4px; white-space: nowrap; opacity: 0; pointer-events: none;
+      margin-bottom: 4px;
+    }
+    .sparkline .bar:hover .tip { opacity: 1; }
+    .sparkline-labels { display: flex; justify-content: space-between; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .funnel-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; }
+    .funnel-row .label { width: 130px; color: var(--muted); font-weight: 500; flex-shrink: 0; }
+    .funnel-row .bar-wrap { flex: 1; background: var(--line); height: 22px; border-radius: 4px; overflow: hidden; position: relative; }
+    .funnel-row .bar { background: var(--accent); height: 100%; border-radius: 4px; transition: width 0.4s ease-out; }
+    .funnel-row .count { font-weight: 700; min-width: 32px; text-align: right; color: var(--ink); }
+    .funnel-row .pct { color: var(--muted); font-size: 11px; min-width: 38px; text-align: right; }
+    .funnel-row.drop { opacity: 0.55; }
+    .funnel-row.drop .bar { background: var(--warn); }
+    .funnel-note { color: var(--muted); font-size: 11px; margin: 10px 0 0; }
+    .privacy-note { font-size: 12px; color: var(--muted); margin: 24px 0 0; line-height: 1.6; }
+    .privacy-note a { color: var(--accent); }
+    .login {
+      max-width: 360px; margin: 80px auto; background: var(--card);
+      padding: 24px; border-radius: 12px; border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .login input {
+      width: 100%; padding: 10px 12px; font: inherit; border: 1px solid var(--line);
+      border-radius: 8px; margin: 12px 0;
+    }
+    .err { color: #b03030; font-size: 13px; margin-top: 8px; }
+    .pill { display: inline-block; padding: 1px 8px; border-radius: 12px; font-size: 11px; background: var(--line); color: var(--muted); margin-right: 4px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <section id="loginSection" class="login hidden">
+    <h1 style="margin:0 0 8px">OurCycle Admin</h1>
+    <p class="meta">Enter the admin token to view analytics.</p>
+    <input id="tokenInput" type="password" placeholder="Admin token" autocomplete="off">
+    <button id="loginBtn" style="width:100%">Sign in</button>
+    <div id="loginErr" class="err"></div>
+  </section>
+
+  <main id="dashboard" class="hidden">
+    <header>
+      <h1>OurCycle Analytics</h1>
+      <p class="lede">Live aggregates from Firestore + Firebase Auth.</p>
+      <div class="refresh-bar">
+        <button id="refreshBtn">Refresh</button>
+        <button class="ghost" id="signoutBtn">Sign out</button>
+        <span class="meta" id="generatedAt"></span>
+      </div>
+    </header>
+
+    <h2>People</h2>
+    <div class="cards">
+      <div class="card accent">
+        <div class="lbl">Real users</div>
+        <div class="val" id="realUsers">-</div>
+        <div class="sub">excluding Apple reviewers and internal accounts</div>
+      </div>
+      <div class="card">
+        <div class="lbl">Couples</div>
+        <div class="val" id="couples">-</div>
+        <div class="sub" id="usersPairedSub"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Total accounts</div>
+        <div class="val" id="totalAccounts">-</div>
+        <div class="sub" id="accountsBreakdown"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">Active cycles</div>
+        <div class="val" id="activeCycles">-</div>
+        <div class="sub">users currently tracking</div>
+      </div>
+    </div>
+
+    <h2>Activity</h2>
+    <div class="cards">
+      <div class="card good">
+        <div class="lbl">Signals sent</div>
+        <div class="val" id="signals">-</div>
+      </div>
+      <div class="card good">
+        <div class="lbl">Cycles logged</div>
+        <div class="val" id="cyclesLogged">-</div>
+        <div class="sub">active + historical entries</div>
+      </div>
+      <div class="card good">
+        <div class="lbl">Check-ins</div>
+        <div class="val" id="checkIns">-</div>
+      </div>
+      <div class="card good">
+        <div class="lbl">Daily connects</div>
+        <div class="val" id="dailyConnects">-</div>
+      </div>
+      <div class="card good">
+        <div class="lbl">Flow logs</div>
+        <div class="val" id="flowOverrides">-</div>
+      </div>
+    </div>
+
+    <h2>Signups - last 30 days</h2>
+    <div class="card">
+      <div class="sparkline" id="spark"></div>
+      <div class="sparkline-labels" id="sparkLabels"></div>
+    </div>
+
+    <h2>Onboarding funnel</h2>
+    <div class="card">
+      <div id="funnel"></div>
+      <p class="funnel-note">Counts over real users (excluding Apple reviewers and internal accounts). No individual identifiers are exposed.</p>
+    </div>
+
+    <h2>Providers</h2>
+    <div class="card">
+      <div id="providers"></div>
+    </div>
+
+    <p class="meta privacy-note">
+      This dashboard shows aggregate counts only. Per-user data (emails, names,
+      cycle content) is never exposed here. The endpoint is token-protected and
+      accessible only to the app's controller. See
+      <a href="https://www.ourcycle.app/privacy" target="_blank">privacy policy</a>.
+    </p>
+  </main>
+
+<script>
+const ENDPOINT = "https://us-central1-ourcycle-b6b97.cloudfunctions.net/adminStats";
+const TOKEN_KEY = "ourcycle.admin.token";
+
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => (n ?? 0).toLocaleString();
+const dateOnly = (s) => s ? s.slice(0, 10) : "-";
+
+function showLogin(msg) {
+  $("loginSection").classList.remove("hidden");
+  $("dashboard").classList.add("hidden");
+  $("loginErr").textContent = msg || "";
+}
+
+function showDashboard() {
+  $("loginSection").classList.add("hidden");
+  $("dashboard").classList.remove("hidden");
+}
+
+async function fetchStats(token) {
+  const res = await fetch(ENDPOINT, {
+    headers: { "X-Admin-Token": token },
+  });
+  if (res.status === 401) throw new Error("Token rejected by server.");
+  if (!res.ok) throw new Error(`Server returned ${res.status}`);
+  return res.json();
+}
+
+function renderStats(data) {
+  const t = data.totals;
+  $("realUsers").textContent = fmt(t.realUsers);
+  $("couples").textContent = fmt(t.couples);
+  $("usersPairedSub").textContent = `${fmt(t.usersPaired)} users paired`;
+  $("totalAccounts").textContent = fmt(t.authUsers);
+  $("accountsBreakdown").textContent =
+    `${fmt(t.appleReviewers)} reviewers · ${fmt(t.internal)} internal`;
+  $("activeCycles").textContent = fmt(t.usersWithActiveCycle);
+
+  $("signals").textContent = fmt(t.totalSignals);
+  $("cyclesLogged").textContent = fmt(t.totalCyclesLogged);
+  $("checkIns").textContent = fmt(t.totalCheckIns);
+  $("dailyConnects").textContent = fmt(t.totalDailyConnects);
+  $("flowOverrides").textContent = fmt(t.totalFlowOverrides);
+
+  $("generatedAt").textContent =
+    "Generated " + new Date(data.generatedAt).toLocaleString();
+
+  // Sparkline
+  const spark = $("spark");
+  spark.innerHTML = "";
+  const max = Math.max(1, ...data.signupsByDay.map((d) => d.count));
+  for (const d of data.signupsByDay) {
+    const pct = (d.count / max) * 100;
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.height = `${pct}%`;
+    const tip = document.createElement("span");
+    tip.className = "tip";
+    tip.textContent = `${d.date}: ${d.count}`;
+    bar.appendChild(tip);
+    spark.appendChild(bar);
+  }
+  $("sparkLabels").innerHTML =
+    `<span>${data.signupsByDay[0]?.date || ""}</span><span>${data.signupsByDay.at(-1)?.date || ""}</span>`;
+
+  // Providers
+  const providersDiv = $("providers");
+  providersDiv.innerHTML = "";
+  for (const [p, count] of Object.entries(data.providers).sort((a, b) => b[1] - a[1])) {
+    const span = document.createElement("span");
+    span.className = "pill";
+    span.textContent = `${p}: ${count}`;
+    providersDiv.appendChild(span);
+  }
+
+  // Funnel - aggregate counts only, no per-user identifiers
+  const funnelDiv = $("funnel");
+  funnelDiv.innerHTML = "";
+  if (data.funnel && data.funnel.length) {
+    const start = data.funnel[0].count || 1;
+    let prev = null;
+    for (const stage of data.funnel) {
+      const widthPct = (stage.count / start) * 100;
+      const dropFromPrev = prev !== null && prev > 0
+        ? Math.round((stage.count / prev) * 100)
+        : 100;
+      const row = document.createElement("div");
+      row.className = "funnel-row" + (stage.count === 0 ? " drop" : "");
+      row.innerHTML = `
+        <span class="label">${stage.label}</span>
+        <div class="bar-wrap"><div class="bar" style="width:${Math.max(widthPct, 2)}%"></div></div>
+        <span class="count">${fmt(stage.count)}</span>
+        <span class="pct">${stage.pctOfStart}% · ${dropFromPrev}↓</span>
+      `;
+      funnelDiv.appendChild(row);
+      prev = stage.count;
+    }
+  } else {
+    funnelDiv.textContent = "No funnel data yet.";
+  }
+}
+
+async function loadAndRender() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) { showLogin(); return; }
+  try {
+    const data = await fetchStats(token);
+    showDashboard();
+    renderStats(data);
+  } catch (err) {
+    if (err.message.includes("rejected")) {
+      localStorage.removeItem(TOKEN_KEY);
+      showLogin(err.message);
+    } else {
+      showDashboard();
+      $("generatedAt").textContent = "Error: " + err.message;
+    }
+  }
+}
+
+$("loginBtn").addEventListener("click", async () => {
+  const token = $("tokenInput").value.trim();
+  if (!token) return;
+  try {
+    const data = await fetchStats(token);
+    localStorage.setItem(TOKEN_KEY, token);
+    showDashboard();
+    renderStats(data);
+  } catch (err) {
+    $("loginErr").textContent = err.message;
+  }
+});
+$("tokenInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("loginBtn").click();
+});
+$("refreshBtn").addEventListener("click", loadAndRender);
+$("signoutBtn").addEventListener("click", () => {
+  localStorage.removeItem(TOKEN_KEY);
+  showLogin();
+});
+
+loadAndRender();
+</script>
+</body>
+</html>
